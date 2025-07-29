@@ -19,7 +19,7 @@ A unified CMake module for integrating SQLite into your projects with support fo
 
 ## Quick Start
 
-### Using FetchContent (Recommended)
+### Using FetchContent
 
 ```cmake
 include(FetchContent)
@@ -41,24 +41,6 @@ add_sqlite(
 )
 
 # Link the same way regardless of backend
-target_link_libraries(your_target PRIVATE SQLite::SQLite3)
-```
-
-### Local Installation
-
-```bash
-git clone https://github.com/your-org/sqlite-cmake.git  # Replace with actual repo URL
-cd sqlite-cmake
-mkdir build && cd build
-cmake .. -DCMAKE_INSTALL_PREFIX=/path/to/install
-cmake --install .
-```
-
-Then in your project:
-
-```cmake
-find_package(SQLiteCMake REQUIRED)
-add_sqlite(BACKEND PUBLIC)
 target_link_libraries(your_target PRIVATE SQLite::SQLite3)
 ```
 
