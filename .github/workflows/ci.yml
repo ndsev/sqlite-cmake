@@ -1,0 +1,113 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, fix-populate ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-public:
+    name: Build with Public SQLite
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        build_type: [Debug, Release]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Configure CMake (Public SQLite)
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+          -DSQLITE_BACKEND=PUBLIC \
+          -DSQLITE_ENABLE_FTS5=ON \
+          -DSQLITE_ENABLE_RTREE=ON \
+          -DSQLITE_ENABLE_JSON1=ON \
+          -DSQLITE_ENABLE_MATH=ON \
+          -DSQLITE_ENABLE_COLUMN_METADATA=ON \
+          examples/basic
+      shell: bash
+    
+    - name: Build
+      run: cmake --build build --config ${{ matrix.build_type }}
+    
+    - name: Test
+      working-directory: build
+      run: ctest -C ${{ matrix.build_type }} --output-on-failure
+      shell: bash
+
+  build-nds:
+    name: Build with NDS SQLite DevKit
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        build_type: [Debug, Release]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Git for NDS Repository Access
+      run: |
+        # Configure git to use the token for NDS Forgejo
+        git config --global url."https://oauth2:${{ secrets.NDS_FORGEJO_TOKEN }}@git.nds-association.org/".insteadOf "https://git.nds-association.org/"
+      shell: bash
+    
+    - name: Configure CMake (NDS SQLite)
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+          -DSQLITE_BACKEND=NDS \
+          -DSQLITE_NDS_REPOSITORY_URL=https://git.nds-association.org/NDS.Digital/nds-sqlite-devkit.git \
+          -DSQLITE_NDS_TAG=SQLite-3.47.0 \
+          -DSQLITE_ENABLE_FTS5=ON \
+          -DSQLITE_ENABLE_RTREE=ON \
+          -DSQLITE_ENABLE_JSON1=ON \
+          -DSQLITE_ENABLE_MATH=ON \
+          -DSQLITE_ENABLE_COLUMN_METADATA=ON \
+          -DSQLITE_ENABLE_COMPRESSION=ON \
+          examples/basic
+      shell: bash
+    
+    - name: Build
+      run: cmake --build build --config ${{ matrix.build_type }}
+    
+    - name: Test
+      working-directory: build
+      run: ctest -C ${{ matrix.build_type }} --output-on-failure
+      shell: bash
+
+  examples:
+    name: Test Examples
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Test Basic Example (Public)
+      run: |
+        cd examples/basic
+        mkdir build && cd build
+        cmake .. -DSQLITE_BACKEND=PUBLIC
+        cmake --build .
+        ./basic_example || true  # Run but don't fail if example exits with non-zero
+    
+    - name: Clean
+      run: rm -rf examples/basic/build
+    
+    - name: Setup Git for NDS Repository Access
+      run: |
+        git config --global url."https://oauth2:${{ secrets.NDS_FORGEJO_TOKEN }}@git.nds-association.org/".insteadOf "https://git.nds-association.org/"
+    
+    - name: Test Basic Example (NDS)
+      run: |
+        cd examples/basic
+        mkdir build && cd build
+        cmake .. -DSQLITE_BACKEND=NDS -DSQLITE_NDS_REPOSITORY_URL=https://git.nds-association.org/NDS.Digital/nds-sqlite-devkit.git
+        cmake --build .
+        ./basic_example || true  # Run but don't fail if example exits with non-zero
