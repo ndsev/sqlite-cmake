@@ -80,7 +80,7 @@ export NDS_FORGEJO_TOKEN="your-token-here"
 git config --global url."https://oauth2:${NDS_FORGEJO_TOKEN}@git.nds-association.org/".insteadOf "https://git.nds-association.org/"
 
 # Test cloning
-git clone https://git.nds-association.org/NDS.Digital/nds-sqlite-devkit.git test-clone
+git clone https://git.nds-association.org/NDS/sqlite-reference-engine.git test-clone
 ```
 
 ## CI Workflow Overview

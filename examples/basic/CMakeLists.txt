@@ -9,17 +9,15 @@ include(SQLiteConfig)
 set(SQLITE_BACKEND "PUBLIC" CACHE STRING "SQLite backend to use (PUBLIC or NDS)")
 
 # Option for NDS repository URL (only used when SQLITE_BACKEND=NDS)
-set(NDS_REPOSITORY_URL "" CACHE STRING "Git repository URL for NDS SQLite")
+set(SQLITE_NDS_REPOSITORY_URL "https://git.nds-association.org/NDS/sqlite-reference-engine.git" 
+    CACHE STRING "Git repository URL for NDS SQLite DevKit")
 
 # Configure SQLite based on the chosen backend
 if(SQLITE_BACKEND STREQUAL "NDS")
     message(STATUS "Example: Using NDS SQLite backend")
-    if(NOT NDS_REPOSITORY_URL)
-        message(FATAL_ERROR "NDS_REPOSITORY_URL must be set when using NDS backend. Use -DNDS_REPOSITORY_URL=<url>")
-    endif()
     add_sqlite(
         BACKEND NDS
-        NDS_REPOSITORY_URL "${NDS_REPOSITORY_URL}"
+        NDS_REPOSITORY_URL "${SQLITE_NDS_REPOSITORY_URL}"
         NDS_TAG "SQLite-3.47.0"
         ENABLE_COMPRESSION ON
         ENABLE_FTS5 ON
