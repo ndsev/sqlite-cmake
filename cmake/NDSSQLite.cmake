@@ -70,6 +70,7 @@ function(_add_nds_sqlite)
         GIT_REPOSITORY "${SQLITE_NDS_REPOSITORY_URL}"
         GIT_TAG        "${SQLITE_NDS_TAG}"
         GIT_SHALLOW    ON
+        SOURCE_SUBDIR  src/cpp  # Tell FetchContent where the CMakeLists.txt is
     )
     
     # Set policy for old CMake minimum version
@@ -80,32 +81,32 @@ function(_add_nds_sqlite)
     FetchContent_GetProperties(nds_sqlite_devkit)
     if(NOT nds_sqlite_devkit_POPULATED)
         message(STATUS "Fetching NDS SQLite DevKit (${SQLITE_NDS_TAG})")
+        
+        # Save current policy state
+        cmake_policy(PUSH)
+        cmake_policy(SET CMP0048 NEW)
+        if(POLICY CMP0077)
+            cmake_policy(SET CMP0077 NEW)
+        endif()
+        
+        # FetchContent_MakeAvailable will handle add_subdirectory for us
         FetchContent_MakeAvailable(nds_sqlite_devkit)
+        
+        cmake_policy(POP)
+        
+        # Workaround for macOS: Fix fdopen macro conflict in DevKit's zlib
+        if(APPLE AND EXISTS "${nds_sqlite_devkit_SOURCE_DIR}/src/cpp/zlib/zutil.h")
+            file(READ "${nds_sqlite_devkit_SOURCE_DIR}/src/cpp/zlib/zutil.h" ZUTIL_CONTENT)
+            string(REPLACE "#        define fdopen(fd,mode) NULL /* No fdopen() */" 
+                           "/* fdopen macro removed for macOS compatibility */" 
+                           ZUTIL_CONTENT "${ZUTIL_CONTENT}")
+            file(WRITE "${nds_sqlite_devkit_SOURCE_DIR}/src/cpp/zlib/zutil.h" "${ZUTIL_CONTENT}")
+        endif()
     endif()
     
-    if(NOT nds_sqlite_devkit_POPULATED)
-        message(FATAL_ERROR "Failed to fetch SQLite DevKit. Note: this is only available to NDS members.")
+    if(NOT TARGET nds_sqlite3)
+        message(FATAL_ERROR "Failed to fetch SQLite DevKit or nds_sqlite3 target not found. Note: this is only available to NDS members.")
     endif()
-    
-    # Workaround for macOS: Fix fdopen macro conflict in DevKit's zlib
-    if(APPLE AND EXISTS "${nds_sqlite_devkit_SOURCE_DIR}/src/cpp/zlib/zutil.h")
-        file(READ "${nds_sqlite_devkit_SOURCE_DIR}/src/cpp/zlib/zutil.h" ZUTIL_CONTENT)
-        string(REPLACE "#        define fdopen(fd,mode) NULL /* No fdopen() */" 
-                       "/* fdopen macro removed for macOS compatibility */" 
-                       ZUTIL_CONTENT "${ZUTIL_CONTENT}")
-        file(WRITE "${nds_sqlite_devkit_SOURCE_DIR}/src/cpp/zlib/zutil.h" "${ZUTIL_CONTENT}")
-    endif()
-    
-    # Add the SQLite DevKit with policy context
-    cmake_policy(PUSH)
-    cmake_policy(SET CMP0048 NEW)
-    if(POLICY CMP0077)
-        cmake_policy(SET CMP0077 NEW)
-    endif()
-    add_subdirectory(${nds_sqlite_devkit_SOURCE_DIR}/src/cpp 
-                     ${nds_sqlite_devkit_BINARY_DIR}
-                     EXCLUDE_FROM_ALL)
-    cmake_policy(POP)
     
     # Create compatibility layer
     _create_nds_compatibility_layer()

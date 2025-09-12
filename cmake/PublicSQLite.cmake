@@ -46,25 +46,33 @@ function(_add_public_sqlite)
     set(SQLITE_URL 
         "https://www.sqlite.org/${SQLITE_RELEASE_YEAR}/sqlite-amalgamation-${AMALGAMATION_VERSION}.zip")
     
-    # Declare SQLite
-    FetchContent_Declare(
-        sqlite_public_amalgamation
-        URL ${SQLITE_URL}
-        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    )
+    # Create internal target name to avoid conflicts
+    set(INTERNAL_TARGET_NAME "_sqlite3_public_impl")
     
-    # Get the source
-    FetchContent_GetProperties(sqlite_public_amalgamation)
-    if(NOT sqlite_public_amalgamation_POPULATED)
-        message(STATUS "Downloading SQLite ${SQLITE_VERSION} from ${SQLITE_URL}")
-        FetchContent_MakeAvailable(sqlite_public_amalgamation)
-        
-        # Create internal target name to avoid conflicts
-        set(INTERNAL_TARGET_NAME "_sqlite3_public_impl")
-        
-        # Create a minimal CMakeLists.txt for SQLite
-        set(SQLITE_CMAKE_CONTENT "
-cmake_minimum_required(VERSION 3.14)
+    # Create a wrapper CMakeLists.txt content that will be written after fetch
+    set(_SQLITE_WRAPPER_CMAKE "${CMAKE_CURRENT_BINARY_DIR}/sqlite_wrapper.cmake")
+    
+    # Write a CMake script that will generate the CMakeLists.txt
+    file(WRITE "${_SQLITE_WRAPPER_CMAKE}" [=[
+# This script is executed after FetchContent downloads SQLite amalgamation
+# to create a CMakeLists.txt in the source directory
+
+# Check if we need to create the CMakeLists.txt
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt")
+    message(STATUS "Creating CMakeLists.txt for SQLite amalgamation")
+    
+    # Get variables from parent scope
+    set(INTERNAL_TARGET_NAME "]=] "${INTERNAL_TARGET_NAME}" [=[")
+    set(SQLITE_LIB_TYPE "]=] "${SQLITE_LIB_TYPE}" [=[")
+    set(SQLITE_THREADSAFE "]=] "${SQLITE_THREADSAFE}" [=[")
+    set(SQLITE_ENABLE_FTS5 ]=] "${SQLITE_ENABLE_FTS5}" [=[)
+    set(SQLITE_ENABLE_RTREE ]=] "${SQLITE_ENABLE_RTREE}" [=[)
+    set(SQLITE_ENABLE_JSON1 ]=] "${SQLITE_ENABLE_JSON1}" [=[)
+    set(SQLITE_ENABLE_MATH ]=] "${SQLITE_ENABLE_MATH}" [=[)
+    set(SQLITE_ENABLE_COLUMN_METADATA ]=] "${SQLITE_ENABLE_COLUMN_METADATA}" [=[)
+    
+    # Generate the CMakeLists.txt content
+    file(WRITE "${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt" "cmake_minimum_required(VERSION 3.14)
 project(sqlite3_public C)
 
 # Create SQLite library with internal name
@@ -72,47 +80,46 @@ add_library(${INTERNAL_TARGET_NAME} ${SQLITE_LIB_TYPE} sqlite3.c)
 
 # Set include directories
 target_include_directories(${INTERNAL_TARGET_NAME} PUBLIC 
-    $<BUILD_INTERFACE:\${CMAKE_CURRENT_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
     $<INSTALL_INTERFACE:include>
 )
 
 # Set compile definitions
 target_compile_definitions(${INTERNAL_TARGET_NAME} PRIVATE
-    SQLITE_THREADSAFE=${SQLITE_THREADSAFE}")
-        
-        # Add optional features
-        if(SQLITE_ENABLE_FTS5)
-            string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_ENABLE_FTS5=1\n")
-        endif()
-        
-        if(SQLITE_ENABLE_RTREE)
-            string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_ENABLE_RTREE=1\n")
-            string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_ENABLE_GEOPOLY=1\n")
-        endif()
-        
-        if(SQLITE_ENABLE_JSON1)
-            string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_ENABLE_JSON1=1\n")
-        endif()
-        
-        if(SQLITE_ENABLE_MATH)
-            string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_ENABLE_MATH_FUNCTIONS=1\n")
-        endif()
-        
-        if(SQLITE_ENABLE_COLUMN_METADATA)
-            string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_ENABLE_COLUMN_METADATA=1\n")
-        endif()
-        
-        # Add common useful defines
-        string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_DQS=0\n")
-        string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_DEFAULT_MEMSTATUS=0\n")
-        string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_DEFAULT_WAL_SYNCHRONOUS=1\n")
-        string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_LIKE_DOESNT_MATCH_BLOBS\n")
-        string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_MAX_EXPR_DEPTH=0\n")
-        string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_OMIT_DEPRECATED\n")
-        string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_OMIT_SHARED_CACHE\n")
-        string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_USE_ALLOCA\n")
-        
-        string(APPEND SQLITE_CMAKE_CONTENT ")
+    SQLITE_THREADSAFE=${SQLITE_THREADSAFE}]=])
+    
+    if(SQLITE_ENABLE_FTS5)
+        file(APPEND "${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt" "\n    SQLITE_ENABLE_FTS5=1")
+    endif()
+    
+    if(SQLITE_ENABLE_RTREE)
+        file(APPEND "${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt" "\n    SQLITE_ENABLE_RTREE=1")
+        file(APPEND "${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt" "\n    SQLITE_ENABLE_GEOPOLY=1")
+    endif()
+    
+    if(SQLITE_ENABLE_JSON1)
+        file(APPEND "${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt" "\n    SQLITE_ENABLE_JSON1=1")
+    endif()
+    
+    if(SQLITE_ENABLE_MATH)
+        file(APPEND "${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt" "\n    SQLITE_ENABLE_MATH_FUNCTIONS=1")
+    endif()
+    
+    if(SQLITE_ENABLE_COLUMN_METADATA)
+        file(APPEND "${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt" "\n    SQLITE_ENABLE_COLUMN_METADATA=1")
+    endif()
+    
+    # Add common useful defines
+    file(APPEND "${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt" [=[
+    SQLITE_DQS=0
+    SQLITE_DEFAULT_MEMSTATUS=0
+    SQLITE_DEFAULT_WAL_SYNCHRONOUS=1
+    SQLITE_LIKE_DOESNT_MATCH_BLOBS
+    SQLITE_MAX_EXPR_DEPTH=0
+    SQLITE_OMIT_DEPRECATED
+    SQLITE_OMIT_SHARED_CACHE
+    SQLITE_USE_ALLOCA
+)
 
 # Platform-specific settings
 if(WIN32)
@@ -123,37 +130,37 @@ elseif(UNIX)
     # Check for and link required libraries
     include(CheckLibraryExists)
     
-    # Math library
-    if(${SQLITE_ENABLE_MATH})
-        check_library_exists(m sqrt \"\" HAVE_LIB_M)
-        if(HAVE_LIB_M)
-            target_link_libraries(${INTERNAL_TARGET_NAME} PUBLIC m)
-        endif()
+    # Math library]=])
+    
+    if(SQLITE_ENABLE_MATH)
+        file(APPEND "${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt" [=[
+    check_library_exists(m sqrt "" HAVE_LIB_M)
+    if(HAVE_LIB_M)
+        target_link_libraries(${INTERNAL_TARGET_NAME} PUBLIC m)
+    endif()]=])
     endif()
     
+    file(APPEND "${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt" [=[
+    
     # Dynamic loading library
-    check_library_exists(dl dlopen \"\" HAVE_LIB_DL)
+    check_library_exists(dl dlopen "" HAVE_LIB_DL)
     if(HAVE_LIB_DL)
         target_link_libraries(${INTERNAL_TARGET_NAME} PUBLIC dl)
     endif()
+endif()]=])
     
-    # Threading library
-endif()
-")
-        
-        # Add threading support if needed
-        if(SQLITE_THREADSAFE GREATER 0)
-            string(APPEND SQLITE_CMAKE_CONTENT "
+    if(SQLITE_THREADSAFE GREATER 0)
+        file(APPEND "${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt" [=[
+
 # Threading support
 if(UNIX)
     find_package(Threads REQUIRED)
     target_link_libraries(${INTERNAL_TARGET_NAME} PUBLIC Threads::Threads)
-endif()
-")
-        endif()
-        
-        # Add properties section
-        string(APPEND SQLITE_CMAKE_CONTENT "
+endif()]=])
+    endif()
+    
+    file(APPEND "${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt" [=[
+
 # Set properties
 set_target_properties(${INTERNAL_TARGET_NAME} PROPERTIES
     C_STANDARD 99
@@ -161,17 +168,23 @@ set_target_properties(${INTERNAL_TARGET_NAME} PROPERTIES
     POSITION_INDEPENDENT_CODE ON
     OUTPUT_NAME sqlite3
 )
-")
-        
-        # Write the CMakeLists.txt
-        file(WRITE ${sqlite_public_amalgamation_SOURCE_DIR}/CMakeLists.txt 
-             "${SQLITE_CMAKE_CONTENT}")
-    endif()
+]=])
+endif()
+]=])
     
-    # Add the subdirectory
-    add_subdirectory(${sqlite_public_amalgamation_SOURCE_DIR} 
-                     ${sqlite_public_amalgamation_BINARY_DIR} 
-                     EXCLUDE_FROM_ALL)
+    # Declare SQLite with a hook to create CMakeLists.txt after download
+    FetchContent_Declare(
+        sqlite_public_amalgamation
+        URL ${SQLITE_URL}
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+    
+    # Set the include script that will be executed when the project is configured
+    set(CMAKE_PROJECT_sqlite_public_amalgamation_INCLUDE "${_SQLITE_WRAPPER_CMAKE}")
+    
+    # Use MakeAvailable - it will download, create CMakeLists.txt via our hook, and add_subdirectory
+    message(STATUS "Downloading SQLite ${SQLITE_VERSION} from ${SQLITE_URL}")
+    FetchContent_MakeAvailable(sqlite_public_amalgamation)
     
     # Create the public interface target with the requested name
     add_library(${SQLITE_TARGET_NAME} INTERFACE)
