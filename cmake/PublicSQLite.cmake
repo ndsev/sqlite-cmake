@@ -57,7 +57,7 @@ function(_add_public_sqlite)
     FetchContent_GetProperties(sqlite_public_amalgamation)
     if(NOT sqlite_public_amalgamation_POPULATED)
         message(STATUS "Downloading SQLite ${SQLITE_VERSION} from ${SQLITE_URL}")
-        FetchContent_Populate(sqlite_public_amalgamation)
+        FetchContent_MakeAvailable(sqlite_public_amalgamation)
         
         # Create internal target name to avoid conflicts
         set(INTERNAL_TARGET_NAME "_sqlite3_public_impl")

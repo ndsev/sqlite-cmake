@@ -80,7 +80,7 @@ function(_add_nds_sqlite)
     FetchContent_GetProperties(nds_sqlite_devkit)
     if(NOT nds_sqlite_devkit_POPULATED)
         message(STATUS "Fetching NDS SQLite DevKit (${SQLITE_NDS_TAG})")
-        FetchContent_Populate(nds_sqlite_devkit)
+        FetchContent_MakeAvailable(nds_sqlite_devkit)
     endif()
     
     if(NOT nds_sqlite_devkit_POPULATED)
