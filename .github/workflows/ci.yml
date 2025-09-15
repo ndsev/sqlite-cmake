@@ -7,6 +7,36 @@ on:
     branches: [ main ]
 
 jobs:
+  prepare-nds:
+    name: Prepare NDS source (once, encrypted)
+    runs-on: ubuntu-latest
+    if: ${{ secrets.NDS_FORGEJO_TOKEN != '' }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Git for NDS Repository Access
+      run: |
+        git config --global url."https://oauth2:${{ secrets.NDS_FORGEJO_TOKEN }}@git.nds-association.org/".insteadOf "https://git.nds-association.org/"
+    - name: Clone NDS SQLite DevKit
+      run: |
+        mkdir -p third_party
+        git clone --depth 1 --branch SQLite-3.47.0 https://git.nds-association.org/NDS/sqlite-reference-engine.git third_party/nds-sqlite-devkit
+    - name: Create password-protected archive
+      env:
+        NDS_FORGEJO_TOKEN: ${{ secrets.NDS_FORGEJO_TOKEN }}
+      run: |
+        KEY=$(python3 - <<'PY'
+import os, hashlib
+print(hashlib.sha256(os.environ['NDS_FORGEJO_TOKEN'].encode()).hexdigest())
+PY
+        )
+        cd third_party
+        zip -r -P "$KEY" nds-sqlite-devkit.zip nds-sqlite-devkit
+    - name: Upload encrypted NDS source artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: nds-sqlite-devkit-enc
+        path: third_party/nds-sqlite-devkit.zip
+        if-no-files-found: error
   build-public:
     name: Build with Public SQLite
     runs-on: ${{ matrix.os }}
@@ -43,6 +73,8 @@ jobs:
   build-nds:
     name: Build with NDS SQLite DevKit
     runs-on: ${{ matrix.os }}
+    if: ${{ secrets.NDS_FORGEJO_TOKEN != '' }}
+    needs: prepare-nds
     strategy:
       fail-fast: false
       matrix:
@@ -52,11 +84,26 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Setup Git for NDS Repository Access
-      run: |
-        # Configure git to use the token for NDS Forgejo
-        git config --global url."https://oauth2:${{ secrets.NDS_FORGEJO_TOKEN }}@git.nds-association.org/".insteadOf "https://git.nds-association.org/"
+    - name: Download encrypted NDS source
+      uses: actions/download-artifact@v4
+      with:
+        name: nds-sqlite-devkit-enc
+        path: third_party
+    - name: Decrypt NDS source
+      env:
+        NDS_FORGEJO_TOKEN: ${{ secrets.NDS_FORGEJO_TOKEN }}
       shell: bash
+      run: |
+        KEY=$(python3 - <<'PY'
+import os, hashlib
+print(hashlib.sha256(os.environ['NDS_FORGEJO_TOKEN'].encode()).hexdigest())
+PY
+        )
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          7z x -p"${KEY}" third_party/nds-sqlite-devkit.zip -othird_party
+        else
+          unzip -P "${KEY}" third_party/nds-sqlite-devkit.zip -d third_party
+        fi
     
     - name: Configure CMake (NDS SQLite)
       run: |
@@ -65,6 +112,8 @@ jobs:
           -DSQLITE_BACKEND=NDS \
           -DSQLITE_NDS_REPOSITORY_URL=https://git.nds-association.org/NDS/sqlite-reference-engine.git \
           -DSQLITE_NDS_TAG=SQLite-3.47.0 \
+          -DFETCHCONTENT_SOURCE_DIR_NDS_SQLITE_DEVKIT=${{ github.workspace }}/third_party/nds-sqlite-devkit \
+          -DFETCHCONTENT_UPDATES_DISCONNECTED=ON \
           -DSQLITE_ENABLE_FTS5=ON \
           -DSQLITE_ENABLE_RTREE=ON \
           -DSQLITE_ENABLE_JSON1=ON \
@@ -100,14 +149,33 @@ jobs:
     - name: Clean
       run: rm -rf examples/basic/build
     
-    - name: Setup Git for NDS Repository Access
+    - name: Download encrypted NDS source
+      if: ${{ secrets.NDS_FORGEJO_TOKEN != '' }}
+      uses: actions/download-artifact@v4
+      with:
+        name: nds-sqlite-devkit-enc
+        path: third_party
+    - name: Decrypt NDS source
+      if: ${{ secrets.NDS_FORGEJO_TOKEN != '' }}
+      env:
+        NDS_FORGEJO_TOKEN: ${{ secrets.NDS_FORGEJO_TOKEN }}
       run: |
-        git config --global url."https://oauth2:${{ secrets.NDS_FORGEJO_TOKEN }}@git.nds-association.org/".insteadOf "https://git.nds-association.org/"
-    
+        KEY=$(python3 - <<'PY'
+import os, hashlib
+print(hashlib.sha256(os.environ['NDS_FORGEJO_TOKEN'].encode()).hexdigest())
+PY
+        )
+        unzip -P "${KEY}" third_party/nds-sqlite-devkit.zip -d third_party
+
     - name: Test Basic Example (NDS)
+      if: ${{ secrets.NDS_FORGEJO_TOKEN != '' }}
       run: |
         cd examples/basic
         mkdir build && cd build
-        cmake .. -DSQLITE_BACKEND=NDS
+        cmake .. -DSQLITE_BACKEND=NDS \
+          -DSQLITE_NDS_REPOSITORY_URL=https://git.nds-association.org/NDS/sqlite-reference-engine.git \
+          -DSQLITE_NDS_TAG=SQLite-3.47.0 \
+          -DFETCHCONTENT_SOURCE_DIR_NDS_SQLITE_DEVKIT=${{ github.workspace }}/third_party/nds-sqlite-devkit \
+          -DFETCHCONTENT_UPDATES_DISCONNECTED=ON
         cmake --build .
         ./basic_example || true  # Run but don't fail if example exits with non-zero

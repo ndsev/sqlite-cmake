@@ -81,18 +81,8 @@ function(_add_nds_sqlite)
     FetchContent_GetProperties(nds_sqlite_devkit)
     if(NOT nds_sqlite_devkit_POPULATED)
         message(STATUS "Fetching NDS SQLite DevKit (${SQLITE_NDS_TAG})")
-        
-        # Save current policy state
-        cmake_policy(PUSH)
-        cmake_policy(SET CMP0048 NEW)
-        if(POLICY CMP0077)
-            cmake_policy(SET CMP0077 NEW)
-        endif()
-        
         # FetchContent_MakeAvailable will handle add_subdirectory for us
         FetchContent_MakeAvailable(nds_sqlite_devkit)
-        
-        cmake_policy(POP)
         
         # Workaround for macOS: Fix fdopen macro conflict in DevKit's zlib
         if(APPLE AND EXISTS "${nds_sqlite_devkit_SOURCE_DIR}/src/cpp/zlib/zutil.h")
