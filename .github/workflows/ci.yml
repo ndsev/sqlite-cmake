@@ -132,6 +132,7 @@ jobs:
 
   examples:
     name: Test Examples
+    needs: prepare-nds
     runs-on: ubuntu-latest
     
     steps:
