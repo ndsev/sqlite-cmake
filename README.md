@@ -205,25 +205,9 @@ export NDS_FORGEJO_TOKEN="<your_token>"
 # Configure git to rewrite https://git.nds-association.org URLs to include the token
 git config --global url."https://oauth2:${NDS_FORGEJO_TOKEN}@git.nds-association.org/".insteadOf "https://git.nds-association.org/"
 
-# Optional: restrict the rewrite to a specific org
-# git config --global url."https://oauth2:${NDS_FORGEJO_TOKEN}@git.nds-association.org/NDS/".insteadOf "https://git.nds-association.org/NDS/"
-
 # Verify (should not prompt for credentials)
 git ls-remote https://git.nds-association.org/NDS/sqlite-reference-engine.git | head -5
 ```
-
-GitHub Actions (already handled in CI):
-
-```yaml
-- name: Setup Git for NDS Repository Access
-  run: |
-    git config --global url."https://oauth2:${{ secrets.NDS_FORGEJO_TOKEN }}@git.nds-association.org/".insteadOf "https://git.nds-association.org/"
-```
-
-Security notes:
-- Prefer using the rewrite rule rather than embedding tokens in URLs in CMake.
-- Avoid committing the token or `~/.gitconfig` with the token; use environment variables.
-- In CI, keep the token in `secrets.NDS_FORGEJO_TOKEN`. The workflow derives an encryption key from it when sharing artifacts.
 
 ### Duplicate Target Errors
 
