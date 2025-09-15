@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(sqlite-cmake VERSION 1.0.0
+project(sqlite-cmake
         DESCRIPTION "Unified SQLite CMake integration module"
         LANGUAGES C CXX)
 
@@ -57,14 +57,3 @@ install(FILES
 if(SQLITE_CMAKE_BUILD_EXAMPLES)
     add_subdirectory(examples/basic)
 endif()
-
-# Print project info
-message(STATUS "")
-message(STATUS "SQLite CMake ${PROJECT_VERSION}")
-message(STATUS "  Build examples: ${SQLITE_CMAKE_BUILD_EXAMPLES}")
-message(STATUS "")
-message(STATUS "To use this module in your project:")
-message(STATUS "  find_package(SQLiteCMake REQUIRED)")
-message(STATUS "  add_sqlite(BACKEND PUBLIC)  # or BACKEND NDS")
-message(STATUS "  target_link_libraries(your_target PRIVATE SQLite::SQLite3)")
-message(STATUS "")
