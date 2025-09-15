@@ -34,7 +34,7 @@ configure_package_config_file(
 # Generate the version file
 write_basic_package_version_file(
     ${CMAKE_CURRENT_BINARY_DIR}/SQLiteCMakeConfigVersion.cmake
-    VERSION ${PROJECT_VERSION}
+    VERSION 0.2.1
     COMPATIBILITY AnyNewerVersion
 )
 
