@@ -69,8 +69,7 @@ add_library(sqlite3 ${SQLITE_LIB_TYPE} sqlite3.c)
 
 # Set include directories
 target_include_directories(sqlite3 PUBLIC 
-    \$<BUILD_INTERFACE:\${CMAKE_CURRENT_SOURCE_DIR}>
-    \$<INSTALL_INTERFACE:include>
+    "\${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
 # Set compile definitions
