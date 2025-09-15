@@ -125,7 +125,7 @@ function(add_sqlite)
     
     # Validate NDS backend requirements
     if(SQLITE_BACKEND STREQUAL "NDS" AND NOT DEFINED SQLITE_NDS_REPOSITORY_URL)
-        message(FATAL_ERROR "add_sqlite: NDS_REPOSITORY_URL is required when using BACKEND NDS")
+        set (NDS_REPOSITORY_URL "https://git.nds-association.org/NDS/sqlite-reference-engine.git")
     endif()
     
     # Set defaults
