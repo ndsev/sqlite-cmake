@@ -192,6 +192,39 @@ If you get an error fetching the NDS SQLite repository, ensure:
 2. Git is configured with proper authentication
 3. You have access to `https://git.nds-association.org`
 
+### Configure Git to use Forgejo token (local and CI)
+
+To allow transparent cloning from the NDS Forgejo server via HTTPS:
+
+Local development:
+
+```bash
+# Use a personal access token (PAT) for Forgejo
+export NDS_FORGEJO_TOKEN="<your_token>"
+
+# Configure git to rewrite https://git.nds-association.org URLs to include the token
+git config --global url."https://oauth2:${NDS_FORGEJO_TOKEN}@git.nds-association.org/".insteadOf "https://git.nds-association.org/"
+
+# Optional: restrict the rewrite to a specific org
+# git config --global url."https://oauth2:${NDS_FORGEJO_TOKEN}@git.nds-association.org/NDS/".insteadOf "https://git.nds-association.org/NDS/"
+
+# Verify (should not prompt for credentials)
+git ls-remote https://git.nds-association.org/NDS/sqlite-reference-engine.git | head -5
+```
+
+GitHub Actions (already handled in CI):
+
+```yaml
+- name: Setup Git for NDS Repository Access
+  run: |
+    git config --global url."https://oauth2:${{ secrets.NDS_FORGEJO_TOKEN }}@git.nds-association.org/".insteadOf "https://git.nds-association.org/"
+```
+
+Security notes:
+- Prefer using the rewrite rule rather than embedding tokens in URLs in CMake.
+- Avoid committing the token or `~/.gitconfig` with the token; use environment variables.
+- In CI, keep the token in `secrets.NDS_FORGEJO_TOKEN`. The workflow derives an encryption key from it when sharing artifacts.
+
 ### Duplicate Target Errors
 
 The module checks for existing targets. If you see warnings about existing targets:
