@@ -46,79 +46,81 @@ function(_add_public_sqlite)
     set(SQLITE_URL 
         "https://www.sqlite.org/${SQLITE_RELEASE_YEAR}/sqlite-amalgamation-${AMALGAMATION_VERSION}.zip")
     
-    # Declare SQLite
-    FetchContent_Declare(
-        sqlite_public_amalgamation
-        URL ${SQLITE_URL}
-        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    )
+    # Populate using full arguments to comply with CMP0169
+    set(sqlite_public_amalgamation_SOURCE_DIR "${CMAKE_BINARY_DIR}/_deps/sqlite_public_amalgamation-src")
+    set(sqlite_public_amalgamation_BINARY_DIR "${CMAKE_BINARY_DIR}/_deps/sqlite_public_amalgamation-build")
     
-    # Get the source
-    FetchContent_GetProperties(sqlite_public_amalgamation)
-    if(NOT sqlite_public_amalgamation_POPULATED)
+    if(NOT EXISTS "${sqlite_public_amalgamation_SOURCE_DIR}/sqlite3.c")
         message(STATUS "Downloading SQLite ${SQLITE_VERSION} from ${SQLITE_URL}")
-        FetchContent_Populate(sqlite_public_amalgamation)
-        
-        # Create internal target name to avoid conflicts
-        set(INTERNAL_TARGET_NAME "_sqlite3_public_impl")
-        
+        FetchContent_Populate(sqlite_public_amalgamation
+            SOURCE_DIR ${sqlite_public_amalgamation_SOURCE_DIR}
+            BINARY_DIR ${sqlite_public_amalgamation_BINARY_DIR}
+            URL ${SQLITE_URL}
+            DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+        )
+
         # Create a minimal CMakeLists.txt for SQLite
         set(SQLITE_CMAKE_CONTENT "
 cmake_minimum_required(VERSION 3.14)
 project(sqlite3_public C)
 
-# Create SQLite library with internal name
-add_library(${INTERNAL_TARGET_NAME} ${SQLITE_LIB_TYPE} sqlite3.c)
+# Create SQLite library
+add_library(sqlite3 ${SQLITE_LIB_TYPE} sqlite3.c)
 
 # Set include directories
-target_include_directories(${INTERNAL_TARGET_NAME} PUBLIC 
-    $<BUILD_INTERFACE:\${CMAKE_CURRENT_SOURCE_DIR}>
-    $<INSTALL_INTERFACE:include>
+target_include_directories(sqlite3 PUBLIC 
+    \$<BUILD_INTERFACE:\${CMAKE_CURRENT_SOURCE_DIR}>
+    \$<INSTALL_INTERFACE:include>
 )
 
 # Set compile definitions
-target_compile_definitions(${INTERNAL_TARGET_NAME} PRIVATE
+target_compile_definitions(sqlite3 PRIVATE
     SQLITE_THREADSAFE=${SQLITE_THREADSAFE}")
         
         # Add optional features
         if(SQLITE_ENABLE_FTS5)
-            string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_ENABLE_FTS5=1\n")
+            string(APPEND SQLITE_CMAKE_CONTENT "
+    SQLITE_ENABLE_FTS5=1")
         endif()
         
         if(SQLITE_ENABLE_RTREE)
-            string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_ENABLE_RTREE=1\n")
-            string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_ENABLE_GEOPOLY=1\n")
+            string(APPEND SQLITE_CMAKE_CONTENT "
+    SQLITE_ENABLE_RTREE=1
+    SQLITE_ENABLE_GEOPOLY=1")
         endif()
         
         if(SQLITE_ENABLE_JSON1)
-            string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_ENABLE_JSON1=1\n")
+            string(APPEND SQLITE_CMAKE_CONTENT "
+    SQLITE_ENABLE_JSON1=1")
         endif()
         
         if(SQLITE_ENABLE_MATH)
-            string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_ENABLE_MATH_FUNCTIONS=1\n")
+            string(APPEND SQLITE_CMAKE_CONTENT "
+    SQLITE_ENABLE_MATH_FUNCTIONS=1")
         endif()
         
         if(SQLITE_ENABLE_COLUMN_METADATA)
-            string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_ENABLE_COLUMN_METADATA=1\n")
+            string(APPEND SQLITE_CMAKE_CONTENT "
+    SQLITE_ENABLE_COLUMN_METADATA=1")
         endif()
         
         # Add common useful defines
-        string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_DQS=0\n")
-        string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_DEFAULT_MEMSTATUS=0\n")
-        string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_DEFAULT_WAL_SYNCHRONOUS=1\n")
-        string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_LIKE_DOESNT_MATCH_BLOBS\n")
-        string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_MAX_EXPR_DEPTH=0\n")
-        string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_OMIT_DEPRECATED\n")
-        string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_OMIT_SHARED_CACHE\n")
-        string(APPEND SQLITE_CMAKE_CONTENT "    SQLITE_USE_ALLOCA\n")
-        
-        string(APPEND SQLITE_CMAKE_CONTENT ")
+        string(APPEND SQLITE_CMAKE_CONTENT "
+    SQLITE_DQS=0
+    SQLITE_DEFAULT_MEMSTATUS=0
+    SQLITE_DEFAULT_WAL_SYNCHRONOUS=1
+    SQLITE_LIKE_DOESNT_MATCH_BLOBS
+    SQLITE_MAX_EXPR_DEPTH=0
+    SQLITE_OMIT_DEPRECATED
+    SQLITE_OMIT_SHARED_CACHE
+    SQLITE_USE_ALLOCA
+)
 
 # Platform-specific settings
 if(WIN32)
-    target_compile_definitions(${INTERNAL_TARGET_NAME} PRIVATE SQLITE_OS_WIN=1)
+    target_compile_definitions(sqlite3 PRIVATE SQLITE_OS_WIN=1)
 elseif(UNIX)
-    target_compile_definitions(${INTERNAL_TARGET_NAME} PRIVATE SQLITE_OS_UNIX=1)
+    target_compile_definitions(sqlite3 PRIVATE SQLITE_OS_UNIX=1)
     
     # Check for and link required libraries
     include(CheckLibraryExists)
@@ -127,14 +129,14 @@ elseif(UNIX)
     if(${SQLITE_ENABLE_MATH})
         check_library_exists(m sqrt \"\" HAVE_LIB_M)
         if(HAVE_LIB_M)
-            target_link_libraries(${INTERNAL_TARGET_NAME} PUBLIC m)
+            target_link_libraries(sqlite3 PUBLIC m)
         endif()
     endif()
     
     # Dynamic loading library
     check_library_exists(dl dlopen \"\" HAVE_LIB_DL)
     if(HAVE_LIB_DL)
-        target_link_libraries(${INTERNAL_TARGET_NAME} PUBLIC dl)
+        target_link_libraries(sqlite3 PUBLIC dl)
     endif()
     
     # Threading library
@@ -147,7 +149,7 @@ endif()
 # Threading support
 if(UNIX)
     find_package(Threads REQUIRED)
-    target_link_libraries(${INTERNAL_TARGET_NAME} PUBLIC Threads::Threads)
+    target_link_libraries(sqlite3 PUBLIC Threads::Threads)
 endif()
 ")
         endif()
@@ -155,11 +157,10 @@ endif()
         # Add properties section
         string(APPEND SQLITE_CMAKE_CONTENT "
 # Set properties
-set_target_properties(${INTERNAL_TARGET_NAME} PROPERTIES
+set_target_properties(sqlite3 PROPERTIES
     C_STANDARD 99
     C_STANDARD_REQUIRED ON
     POSITION_INDEPENDENT_CODE ON
-    OUTPUT_NAME sqlite3
 )
 ")
         
@@ -168,14 +169,17 @@ set_target_properties(${INTERNAL_TARGET_NAME} PROPERTIES
              "${SQLITE_CMAKE_CONTENT}")
     endif()
     
-    # Add the subdirectory
-    add_subdirectory(${sqlite_public_amalgamation_SOURCE_DIR} 
-                     ${sqlite_public_amalgamation_BINARY_DIR} 
-                     EXCLUDE_FROM_ALL)
+    # Check if target already exists to avoid duplicate add_subdirectory
+    if(NOT TARGET sqlite3)
+        # Add the subdirectory
+        add_subdirectory(${sqlite_public_amalgamation_SOURCE_DIR} 
+                         ${sqlite_public_amalgamation_BINARY_DIR} 
+                         EXCLUDE_FROM_ALL)
+    endif()
     
     # Create the public interface target with the requested name
     add_library(${SQLITE_TARGET_NAME} INTERFACE)
-    target_link_libraries(${SQLITE_TARGET_NAME} INTERFACE ${INTERNAL_TARGET_NAME})
+    target_link_libraries(${SQLITE_TARGET_NAME} INTERFACE sqlite3)
     
     # Create alias target if namespace is provided
     if(SQLITE_NAMESPACE)

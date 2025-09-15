@@ -192,6 +192,23 @@ If you get an error fetching the NDS SQLite repository, ensure:
 2. Git is configured with proper authentication
 3. You have access to `https://git.nds-association.org`
 
+### Configure Git to use Forgejo token (local and CI)
+
+To allow transparent cloning from the NDS Forgejo server via HTTPS:
+
+Local development:
+
+```bash
+# Use a personal access token (PAT) for Forgejo
+export NDS_FORGEJO_TOKEN="<your_token>"
+
+# Configure git to rewrite https://git.nds-association.org URLs to include the token
+git config --global url."https://oauth2:${NDS_FORGEJO_TOKEN}@git.nds-association.org/".insteadOf "https://git.nds-association.org/"
+
+# Verify (should not prompt for credentials)
+git ls-remote https://git.nds-association.org/NDS/sqlite-reference-engine.git | head -5
+```
+
 ### Duplicate Target Errors
 
 The module checks for existing targets. If you see warnings about existing targets:
