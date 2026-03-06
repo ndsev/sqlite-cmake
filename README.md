@@ -1,4 +1,4 @@
-# SQLite CMake Test
+# SQLite CMake
 
 A unified CMake module for integrating SQLite into your projects with support for both public SQLite and NDS SQLite DevKit backends.
 
